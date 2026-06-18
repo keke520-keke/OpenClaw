@@ -1,0 +1,29 @@
+# Secrets & Config
+.env
+*.db
+api_keys.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+backend/logs/
+*.log
+
+# Data
+Quant_Finance/quant_venv/
+Quant_Finance/OpenClaw/
