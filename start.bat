@@ -1,48 +1,70 @@
 @echo off
-cd /d E:\OpenClaw\backend
-echo.
+cd /d "%~dp0"
+
 echo ========================================
-echo   量化交易系统 v4.0 启动脚本
+echo   OpenClaw - AI Quant Trading System
 echo ========================================
 echo.
 
-:: 清理端口
-echo [1/3] 清理端口 8000...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8000 ^| findstr LISTENING') do taskkill /F /PID %%a >nul 2>&1
-timeout /t 1 /nobreak >nul
+:: === Check Python ===
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERROR] Python not found
+    echo Install from: https://www.python.org/downloads/
+    echo Make sure to check "Add Python to PATH"
+    pause & exit /b 1
+)
+echo [OK] Python found
 
-:: 启动后端
-echo [2/3] 启动后端服务器...
-start /B python -m uvicorn main:app --host 0.0.0.0 --port 8000
+:: === Check Node ===
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERROR] Node.js not found
+    echo Install from: https://nodejs.org/
+    pause & exit /b 1
+)
+echo [OK] Node.js found
 
-:: 等待启动
-echo [3/3] 等待服务器启动...
-timeout /t 3 /nobreak >nul
+:: === Backend ===
+cd backend
+echo.
+echo === Installing backend dependencies ===
+pip install -r requirements.txt -q 2>nul
+echo [OK] Dependencies ready
 
-:: 验证
+echo === Starting backend (port 8000) ===
+start "OpenClaw-Backend" cmd /c "cd /d %cd% && python -m uvicorn main:app --host 0.0.0.0 --port 8000"
+
+echo Waiting for backend to be ready...
+:wait_be
+timeout /t 2 /nobreak >nul
 curl -s http://localhost:8000/api/health >nul 2>&1
-if %errorlevel%==0 (
-    echo.
-    echo ========================================
-    echo   服务器启动成功！
-    echo   后端: http://localhost:8000
-    echo   前端: http://localhost:5178
-    echo ========================================
-) else (
-    echo.
-    echo [ERROR] 服务器启动失败
-)
+if %errorlevel% neq 0 goto wait_be
+echo [OK] Backend running at http://localhost:8000
 
-:: 启动前端（可选）
+:: === Frontend ===
+cd /d "%~dp0frontend"
 echo.
-set /p start_frontend="是否启动前端开发服务器？(y/n): "
-if /i "%start_frontend%"=="y" (
-    echo 启动前端...
-    cd /d E:\OpenClaw\frontend
-    start /B npm run dev
-    echo 前端启动在 http://localhost:5178
-)
+echo === Installing frontend dependencies ===
+call npm install 2>&1
+echo [OK] Dependencies ready
 
+echo === Starting frontend (port 5178) ===
+start "OpenClaw-Frontend" cmd /c "cd /d %cd% && npm run dev -- --host 0.0.0.0 --port 5178"
+
+echo Waiting for frontend to be ready...
+:wait_fe
+timeout /t 2 /nobreak >nul
+curl -s http://localhost:5178 >nul 2>&1
+if %errorlevel% neq 0 goto wait_fe
+echo [OK] Frontend running at http://localhost:5178
+
+:: === Open browser ===
 echo.
-echo 按任意键退出...
-pause >nul
+echo ========================================
+echo   Opening browser...
+echo ========================================
+start http://localhost:5178
+echo.
+echo Both servers running. Close the two cmd windows to stop.
+pause
